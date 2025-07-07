@@ -7,75 +7,92 @@
   <title>Random Number Game</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #eef6ff, #d9eafd);
       margin: 0;
       padding: 20px;
-      background: linear-gradient(to bottom right, #f0f8ff, #e6f2ff);
       color: #333;
     }
 
     .container {
       max-width: 600px;
       margin: auto;
-      background: white;
+      background: #fff;
       padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      animation: fadeIn 0.6s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     h1 {
       text-align: center;
-      color: #004080;
+      color: #0056b3;
     }
 
-    .hidden {
+    form,
+    .game-section {
       display: none;
+      flex-direction: column;
+      gap: 10px;
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    form.active,
+    .game-section.active {
+      display: flex;
     }
 
     input,
     button {
       padding: 12px;
-      margin: 8px 0;
-      width: 100%;
-      box-sizing: border-box;
-      border-radius: 5px;
-      border: 1px solid #ccc;
       font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100%;
     }
 
     button {
-      background-color: #004080;
+      background-color: #007bff;
       color: white;
+      border: none;
       cursor: pointer;
+      transition: background 0.3s;
     }
 
     button:hover {
-      background-color: #0066cc;
+      background-color: #0056b3;
     }
 
-    .player-inputs input {
-      width: 100%;
+    #log {
+      margin-top: 10px;
     }
 
     #log p {
-      margin: 5px 0;
+      background: #f1f9ff;
       padding: 10px;
-      background-color: #f1f9ff;
-      border-left: 4px solid #004080;
+      border-left: 4px solid #007bff;
+      margin: 5px 0;
     }
 
-    #log p strong {
-      color: green;
+    #newGameBtn {
+      display: none;
+      background-color: #28a745;
     }
 
-    @media (max-width: 600px) {
-      body {
-        padding: 10px;
-      }
-
-      .container {
-        padding: 15px;
-      }
+    #newGameBtn.show {
+      display: block;
     }
   </style>
 </head>
@@ -84,115 +101,135 @@
   <div class="container">
     <h1>Random Number Game</h1>
 
-    <div id="setup">
-      <label>How many players?</label>
-      <input type="number" id="playerCount" min="1" />
-      <button onclick="setupPlayers()">Next</button>
-    </div>
+    <form id="playerCountForm" class="active">
+      <label for="playerCount">How many players?</label>
+      <input type="number" id="playerCount" required min="1">
+      <button type="submit">Next</button>
+    </form>
 
-    <div id="nameSetup" class="hidden">
-      <div id="playerNames" class="player-inputs"></div>
-      <label>Highest number in range:</label>
-      <input type="number" id="rangeTop" min="2" />
-      <button onclick="startGame()">Start Game</button>
-    </div>
+    <form id="playerNamesForm">
+      <div id="playerNames"></div>
+      <label for="rangeTop">Highest number in range:</label>
+      <input type="number" id="rangeTop" required min="2">
+      <button type="submit">Start Game</button>
+    </form>
 
-    <div id="game" class="hidden">
+    <div id="gameSection" class="game-section">
       <p id="rangeMessage"></p>
       <p id="currentPlayer"></p>
-      <input type="text" id="guessInput" onkeydown="handleEnter(event)" />
-      <button onclick="submitGuess()">Submit Guess</button>
+      <input type="text" id="guessInput" placeholder="Enter your guess">
+      <button id="submitGuessBtn">Submit Guess</button>
       <div id="log"></div>
+      <button id="newGameBtn">Start New Game</button>
     </div>
   </div>
 
   <script>
-    let players = [];
-    let guesses = new Set();
-    let winningNumber;
+    const playerCountForm = document.getElementById('playerCountForm');
+    const playerNamesForm = document.getElementById('playerNamesForm');
+    const gameSection = document.getElementById('gameSection');
+    const playerNamesDiv = document.getElementById('playerNames');
+    const guessInput = document.getElementById('guessInput');
+    const rangeTopInput = document.getElementById('rangeTop');
+    const rangeMessage = document.getElementById('rangeMessage');
+    const currentPlayerDisplay = document.getElementById('currentPlayer');
+    const logDiv = document.getElementById('log');
+    const newGameBtn = document.getElementById('newGameBtn');
+
+    let players = [], guesses = new Set();
     let currentPlayerIndex = 0;
-    let rangeBottom = 1;
-    let rangeTop;
-    let totalGuesses = 0;
+    let rangeBottom = 1, rangeTop, winningNumber, totalGuesses = 0;
 
-    function setupPlayers() {
+    function show(element) {
+      document.querySelectorAll('form, .game-section').forEach(el => el.classList.remove('active'));
+      element.classList.add('active');
+    }
+
+    playerCountForm.addEventListener('submit', e => {
+      e.preventDefault();
       const count = parseInt(document.getElementById('playerCount').value);
-      if (isNaN(count) || count < 1) return alert('Enter a valid number of players.');
+      if (!count || count < 1) return;
 
-      const container = document.getElementById('playerNames');
-      container.innerHTML = '';
+      playerNamesDiv.innerHTML = '';
       for (let i = 0; i < count; i++) {
         const input = document.createElement('input');
         input.placeholder = `Player ${i + 1} name`;
         input.required = true;
-        container.appendChild(input);
+        playerNamesDiv.appendChild(input);
       }
-      document.getElementById('setup').classList.add('hidden');
-      document.getElementById('nameSetup').classList.remove('hidden');
-    }
+      show(playerNamesForm);
+    });
 
-    function startGame() {
-      const nameInputs = document.querySelectorAll('#playerNames input');
-      players = Array.from(nameInputs).map(input => input.value.trim()).filter(name => name);
-      if (players.length < nameInputs.length) return alert('Please fill all names.');
+    playerNamesForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const inputs = [...playerNamesDiv.querySelectorAll('input')];
+      players = inputs.map(i => i.value.trim()).filter(Boolean);
+      if (players.length !== inputs.length) return alert('Please enter all names.');
 
-      rangeTop = parseInt(document.getElementById('rangeTop').value);
-      if (isNaN(rangeTop) || rangeTop <= rangeBottom) return alert('Enter a valid top range (> 1).');
+      rangeTop = parseInt(rangeTopInput.value);
+      if (!rangeTop || rangeTop <= rangeBottom) return alert('Invalid range.');
 
       winningNumber = Math.floor(Math.random() * (rangeTop - rangeBottom + 1)) + rangeBottom;
-      document.getElementById('nameSetup').classList.add('hidden');
-      document.getElementById('game').classList.remove('hidden');
-      updateGameState();
-    }
+      guesses.clear();
+      currentPlayerIndex = 0;
+      totalGuesses = 0;
+      updateGameUI();
+      show(gameSection);
+    });
 
-    function updateGameState() {
-      document.getElementById('rangeMessage').textContent = `Guess a number between ${rangeBottom.toLocaleString()} and ${rangeTop.toLocaleString()}`;
-      document.getElementById('currentPlayer').textContent = `${players[currentPlayerIndex]}'s turn:`;
-      document.getElementById('guessInput').value = '';
-      document.getElementById('guessInput').disabled = false;
-      document.getElementById('guessInput').focus();
-    }
+    document.getElementById('submitGuessBtn').addEventListener('click', submitGuess);
+    guessInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitGuess();
+      }
+    });
 
     function submitGuess() {
-      const input = document.getElementById('guessInput').value.replace(/,/g, '').trim();
+      const input = guessInput.value.replace(/,/g, '').trim();
       const guess = parseInt(input);
       if (isNaN(guess) || guess < rangeBottom || guess > rangeTop) {
-        alert('Enter a valid number within the range.');
+        alert('Guess must be within range.');
         return;
       }
       if (guesses.has(guess)) {
-        alert('This number has already been guessed.');
+        alert('This number was already guessed.');
         return;
       }
 
       guesses.add(guess);
       totalGuesses++;
+      const currentPlayer = players[currentPlayerIndex];
 
-      const log = document.getElementById('log');
       if (guess > winningNumber) {
-        log.innerHTML += `<p>${players[currentPlayerIndex]} guessed ${guess.toLocaleString()}: Too high</p>`;
+        logDiv.innerHTML += `<p>${currentPlayer} guessed ${guess.toLocaleString()}: Too high</p>`;
         rangeTop = Math.min(rangeTop, guess - 1);
       } else if (guess < winningNumber) {
-        log.innerHTML += `<p>${players[currentPlayerIndex]} guessed ${guess.toLocaleString()}: Too low</p>`;
+        logDiv.innerHTML += `<p>${currentPlayer} guessed ${guess.toLocaleString()}: Too low</p>`;
         rangeBottom = Math.max(rangeBottom, guess + 1);
       } else {
-        log.innerHTML += `<p><strong>${players[currentPlayerIndex]} guessed ${guess.toLocaleString()}: Correct! 🎉</strong></p>`;
-        alert(`${players[currentPlayerIndex]} wins! Total guesses: ${totalGuesses}`);
-        document.getElementById('guessInput').disabled = true;
-        document.getElementById('guessInput').placeholder = `Game over in ${totalGuesses} guesses.`;
+        logDiv.innerHTML += `<p><strong>${currentPlayer} guessed ${guess.toLocaleString()}: Correct! 🎉</strong></p>`;
+        rangeMessage.textContent = `🎯 ${currentPlayer} wins in ${totalGuesses} guesses!`;
+        document.getElementById('submitGuessBtn').disabled = true;
+        guessInput.disabled = true;
+        newGameBtn.classList.add('show');
         return;
       }
 
       currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      updateGameState();
+      updateGameUI();
     }
 
-    function handleEnter(event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        submitGuess();
-      }
+    function updateGameUI() {
+      rangeMessage.textContent = `Guess a number between ${rangeBottom.toLocaleString()} and ${rangeTop.toLocaleString()}`;
+      currentPlayerDisplay.textContent = `${players[currentPlayerIndex]}'s turn:`;
+      guessInput.value = '';
+      guessInput.focus();
     }
+
+    newGameBtn.addEventListener('click', () => {
+      location.reload();
+    });
   </script>
 </body>
 
